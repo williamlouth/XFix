@@ -31,25 +31,8 @@ Application::Application(const std::string& xmlFile, const std::string& generate
 		std::cout << field.attribute("name").value() << std::endl;
 	}
 
-	pugi::xml_node messages = fixNode.child("messages");
-	for (pugi::xml_node message : messages)
-	{
-		std::cout << message.attribute("name").value() << std::endl;
-		for (pugi::xml_node field : message)
-		{
-			if (std::string(field.name()) == "field")
-			{
-			}
-			else
-			{
-				std::cout << field.attribute("name").value() << std::endl;
-				for (pugi::xml_node groupMember : field)
-				{
-					std::cout << groupMember.attribute("name").value() << std::endl;
-				}
-			}
-		}
-	}
+	createMessages(fixNode);
+
 
 	pugi::xml_node trailer = fixNode.child("trailer");
 	for (pugi::xml_node field : trailer)
@@ -126,7 +109,7 @@ void Application::createField(const std::string& name, int number, Application::
 	fH << ":value_{value}\n";
 	fH << "{}\n";
 
-	fH << "private:\n";
+	fH << "static const int number = " + std::to_string(number) + ";\n" ;
 
 	fH << "std::string value_;\n";
 
@@ -136,5 +119,111 @@ void Application::createField(const std::string& name, int number, Application::
 
 	fH.close();
 	generatedFiles_.push_back(fileName);
+}
+void Application::createMessages(const pugi::xml_node& fixNode)
+{
+	auto filesDir = generationFolder_ + "messages";
+	if(!std::filesystem::is_directory(filesDir) || !std::filesystem::exists(filesDir))
+	{
+		std::filesystem::create_directory(filesDir);
+	}
+
+	pugi::xml_node messages = fixNode.child("messages");
+	for (pugi::xml_node message : messages)
+	{
+		std::string name = message.attribute("name").value();
+		std::string msgType = message.attribute("msgtype").value();
+
+		std::vector<std::string> fields;
+
+		for (pugi::xml_node field : message)
+		{
+			if (std::string(field.name()) == "field")
+			{
+				fields.push_back(field.attribute("name").value());
+			}
+			else
+			{
+				//std::cout << field.attribute("name").value() << std::endl;
+				//for (pugi::xml_node groupMember : field)
+				//{
+				//	std::cout << groupMember.attribute("name").value() << std::endl;
+				//}
+			}
+		}
+		createMessage(name, fields, msgType);
+	}
+}
+void Application::createMessage(const std::string& name, const std::vector<std::string>& fields, std::string msqType)
+{
+	std::string fileNameH = generationFolder_ + "messages/" + name + "_g.h";
+	std::ofstream fH;
+	fH.open(fileNameH);
+
+	fH << "#pragma once\n";
+
+	fH << "#include <string>\n";
+	for(const auto& field : fields)
+	{
+		fH << "#include <fields/" + field + "_g.h>;\n";
+	}
+	fH << "namespace xfix\n{\n\n";
+
+	fH << "\nclass " + name + "\n{\n";
+
+	fH << "public:\n";
+
+	fH << "        " + name + "()\n";
+	fH << "        {}\n\n";
+
+
+	for(const auto& field : fields)
+	{
+		fH << "        " + field + " get" + field + "() const;\n";
+		fH << "        void set" + field + "(" + field + " " + lowerField(field) + ");\n\n";
+	}
+
+	fH << "inline static const std::string msgType = \"" + msqType + "\";\n" ;
+
+	fH << "private:\n";
+
+	for(const auto& field : fields)
+	{
+		fH << "        " + field + " " + lowerField(field) + "_;\n";
+	}
+
+	fH << "};\n";
+
+	fH << "\n} //xfix\n";
+
+	fH.close();
+
+
+	std::string fileNameCpp = generationFolder_ + "messages/" + name + "_g.cpp";
+	fH.open(fileNameCpp);
+
+	fH << "#include <messages/" + name + "_g.h>;\n\n";
+
+	fH << "namespace xfix\n{\n\n";
+
+	for(const auto& field : fields)
+	{
+		fH << field + " " + name + "::get" + field + "() const\n";
+		fH << "{\n	return " + lowerField(field) + ";\n}\n";
+
+		fH << "void set" + field + "(" + field + " " + lowerField(field) + ")\n";
+		fH << "{\n	" + lowerField(field) + "_ = " + lowerField(field) + ";\n}\n";
+	}
+
+	fH << "\n} //xfix\n";
+	fH.close();
+
+	generatedFiles_.push_back(fileNameCpp);
+}
+std::string Application::lowerField(const std::string& field)
+{
+	std::string lowerField = field;
+	lowerField[0] = std::tolower(field[0]);
+	return lowerField;
 }
 } // xfix

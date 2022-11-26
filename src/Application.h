@@ -64,6 +64,11 @@ private:
 	void createFields(const pugi::xml_node& fixNode);
 	void createField(const std::string& name, int number, FieldType type);
 
+	void createMessages(const pugi::xml_node& fixNode);
+	void createMessage(const std::string& name, const std::vector<std::string>& fields, std::string msqType);
+
+	std::string lowerField(const std::string& field);
+
 
 private:
 	std::string generationFolder_;
