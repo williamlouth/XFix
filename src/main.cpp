@@ -8,12 +8,12 @@
 
 int main(int argc, char* argv[])
 {
- 	if( argc != 2)
+ 	if( argc != 3)
     {
-        std::cout << "Usage: XFixGen <xml file>" << std::endl;
+        std::cout << "Usage: XFixGen <xml file> <Generated Folder>" << std::endl;
         exit(-1);
     }
 
-	xfix::Application application(argv[1]);
+	xfix::Application application(argv[1], argv[2]);
 	return 0;
 }
