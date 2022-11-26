@@ -65,7 +65,7 @@ private:
 	void createField(const std::string& name, int number, FieldType type);
 
 	void createMessages(const pugi::xml_node& fixNode);
-	void createMessage(const std::string& name, const std::vector<std::string>& fields, std::string msqType);
+	void createMessage(const std::string& name, const std::vector<std::pair<std::string, bool>>& fields, std::string msqType);
 
 	std::string lowerField(const std::string& field);
 

@@ -134,13 +134,13 @@ void Application::createMessages(const pugi::xml_node& fixNode)
 		std::string name = message.attribute("name").value();
 		std::string msgType = message.attribute("msgtype").value();
 
-		std::vector<std::string> fields;
+		std::vector<std::pair<std::string,bool>> fields;
 
 		for (pugi::xml_node field : message)
 		{
 			if (std::string(field.name()) == "field")
 			{
-				fields.push_back(field.attribute("name").value());
+				fields.push_back(std::make_pair(std::string(field.attribute("name").value()), std::string(field.attribute("required").value()) == "Y"));
 			}
 			else
 			{
@@ -154,7 +154,7 @@ void Application::createMessages(const pugi::xml_node& fixNode)
 		createMessage(name, fields, msgType);
 	}
 }
-void Application::createMessage(const std::string& name, const std::vector<std::string>& fields, std::string msqType)
+void Application::createMessage(const std::string& name, const std::vector<std::pair<std::string, bool>>& fields, std::string msqType)
 {
 	std::string fileNameH = generationFolder_ + "messages/" + name + "_g.h";
 	std::ofstream fH;
@@ -163,9 +163,10 @@ void Application::createMessage(const std::string& name, const std::vector<std::
 	fH << "#pragma once\n";
 
 	fH << "#include <string>\n";
+	fH << "#include <optional>\n";
 	for(const auto& field : fields)
 	{
-		fH << "#include <fields/" + field + "_g.h>;\n";
+		fH << "#include <fields/" + field.first + "_g.h>;\n";
 	}
 	fH << "namespace xfix\n{\n\n";
 
@@ -176,11 +177,13 @@ void Application::createMessage(const std::string& name, const std::vector<std::
 	fH << "        " + name + "()\n";
 	fH << "        {}\n\n";
 
+	fH << "        bool hasAllRequired();\n\n";
+
 
 	for(const auto& field : fields)
 	{
-		fH << "        " + field + " get" + field + "() const;\n";
-		fH << "        void set" + field + "(" + field + " " + lowerField(field) + ");\n\n";
+		fH << "        std::optional<" + field.first + "> get" + field.first + "() const;\n";
+		fH << "        void set" + field.first + "(std::optional<" + field.first + "> " + lowerField(field.first) + ");\n\n";
 	}
 
 	fH << "inline static const std::string msgType = \"" + msqType + "\";\n" ;
@@ -189,7 +192,7 @@ void Application::createMessage(const std::string& name, const std::vector<std::
 
 	for(const auto& field : fields)
 	{
-		fH << "        " + field + " " + lowerField(field) + "_;\n";
+		fH << "        std::optional<" + field.first + "> " + lowerField(field.first) + "_;\n";
 	}
 
 	fH << "};\n";
@@ -206,13 +209,27 @@ void Application::createMessage(const std::string& name, const std::vector<std::
 
 	fH << "namespace xfix\n{\n\n";
 
+	fH << "bool " + name + "::hasAllRequired() const\n";
+	fH << "{\n";
+
+	for(const auto& [fieldName,required] : fields)
+	{
+		if(required)
+		{
+			fH << "    if(!" + lowerField(fieldName) + "_) return false;\n";
+		}
+	}
+	fH << "    return true;\n";
+
+	fH << "}\n\n";
+
 	for(const auto& field : fields)
 	{
-		fH << field + " " + name + "::get" + field + "() const\n";
-		fH << "{\n	return " + lowerField(field) + ";\n}\n";
+		fH << "std::optional<" + field.first + "> " + name + "::get" + field.first + "() const\n";
+		fH << "{\n	return " + lowerField(field.first) + ";\n}\n";
 
-		fH << "void set" + field + "(" + field + " " + lowerField(field) + ")\n";
-		fH << "{\n	" + lowerField(field) + "_ = " + lowerField(field) + ";\n}\n";
+		fH << "void set" + field.first + "(std::optional<" + field.first + "> " + lowerField(field.first) + ")\n";
+		fH << "{\n	" + lowerField(field.first) + "_ = " + lowerField(field.first) + ";\n}\n\n";
 	}
 
 	fH << "\n} //xfix\n";
